@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <script>
+      // Pick the theme before first paint: saved choice, else daylight hours (06:00–18:00) = light.
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem('waterways.theme'); } catch (e) {}
+        if (t !== 'light' && t !== 'dark') { var h = new Date().getHours(); t = h >= 6 && h < 18 ? 'light' : 'dark'; }
+        document.documentElement.dataset.theme = t;
+        // Language: saved choice, else the first of the browser's ranked languages we support.
+        var l = null;
+        try { l = localStorage.getItem('waterways.lang'); } catch (e) {}
+        if (l !== 'th' && l !== 'en') {
+          var ls = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+          l = 'en';
+          for (var i = 0; i < ls.length; i++) {
+            var c = (ls[i] || '').toLowerCase().slice(0, 2);
+            if (c === 'th' || c === 'en') { l = c; break; }
+          }
+        }
+        document.documentElement.lang = l;
+      })();
+    </script>
+    <meta name="description" content="น้ำอยู่ไหน? แผนที่ 3 มิติ ดูน้ำในแม่น้ำ ฝน และน้ำท่วมทั่วประเทศไทย ทั้งตอนนี้และย้อนหลัง จากข้อมูลสาธารณะ" />
+    <title>น้ำอยู่ไหน? — แผนที่น้ำทั่วไทย</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="map" data-i18n-aria="map.aria" aria-label="แผนที่สามมิติของแม่น้ำ"></div>
+    <header class="mast">
+      <a class="brand" href="./" aria-label="น้ำอยู่ไหน?"><h1><span class="wordmark">น้ำอยู่ไหน</span><svg class="mark" viewBox="0 0 40 52" aria-hidden="true">
+          <defs>
+            <linearGradient id="mk-a" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#8ff0ea" /><stop offset="0.55" stop-color="#3fb4ec" /><stop offset="1" stop-color="#2b6fe0" /></linearGradient>
+          </defs>
+          <path class="mark-hook" d="M13.6 15.4c1.8 1 1.5 3.7-.4 4.5-2.4 1-4.9-.6-4.9-3.6C8.3 8.6 14 3.5 21 3.5c7.5 0 12.5 5 12.5 11.5 0 6-4 9-8 11.5-3 1.9-4.5 4-4.5 7.5" fill="none" stroke="url(#mk-a)" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="mark-drop" d="M21 40.2s-4.4 5-4.4 7.4a4.4 4.4 0 0 0 8.8 0c0-2.4-4.4-7.4-4.4-7.4z" fill="url(#mk-a)" />
+        </svg></h1></a>
+      <p class="brand-eyebrow" data-i18n="brand.eyebrow"></p>
+    </header>
+    <div class="app-tools">      <button id="lang" class="btn icon lang" data-i18n="lang.button" data-i18n-aria="lang.aria" data-i18n-title="lang.aria">EN</button>
+      <button id="theme" class="btn icon" aria-label="เปลี่ยนเป็นโหมดสว่าง" title="เปลี่ยนเป็นโหมดสว่าง">
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" /></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg>
+      </button>
+      <button id="help" class="btn icon" data-i18n-aria="help" data-i18n-title="help" aria-label="วิธีดูแผนที่" title="วิธีดูแผนที่">?</button>
+</div>
+    <section class="place-panel" aria-label="Explore a place">
+      <div class="place-intro"><p class="eyebrow" data-i18n="lede"></p><h2 data-i18n="finder.title"></h2><p data-i18n="finder.hint"></p></div>
+      <div class="finder">
+        <label class="visually-hidden" for="province" data-i18n="province.label">เลือกจังหวัด</label>
+        <select id="province"><option value="" data-i18n="province.placeholder"></option></select>
+      <button id="near" class="btn" data-i18n-aria="near" data-i18n-title="near" aria-label="ใกล้ฉัน">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /><circle cx="12" cy="12" r="7" /></svg>
+        <span id="near-label" data-i18n="near">ใกล้ฉัน</span>
+      </button>
+      </div>
+      <div class="overview">
+        <div class="overview-head"><span id="scope" data-i18n="scope.national"></span><span class="source-badge" data-i18n="source.observed"></span></div>
+      <p class="when"><span id="mode" class="mode">กำลังโหลด</span> <time id="date">—</time> <span id="updated" class="updated"></span></p>
+
+      <ul class="status" aria-live="polite">
+        <li class="s-red">
+          <b id="stat-overflow">—</b>
+          <span data-i18n-html="stat.overflow"><em>จุดที่</em><strong>น้ำล้นตลิ่ง</strong></span>
+        </li>
+        <li class="s-yellow">
+          <b id="stat-high">—</b>
+          <span data-i18n-html="stat.high"><em>จุดที่</em><strong>น้ำเกือบเต็มตลิ่ง</strong></span>
+        </li>
+        <li class="s-rain">
+          <b id="stat-rain">—</b>
+          <span data-i18n-html="stat.rain"><em>จุดที่</em><strong>ฝนตกหนักมาก</strong></span>
+        </li>
+      </ul>
+
+        <p class="coverage" id="coverage" data-i18n="source.coverage"></p>
+        <p class="time-context" id="time-context"></p>
+      </div>
+    </section>
+    <aside class="panel" id="panel">
+      <div class="keybar">
+        <ul class="keyrow" id="keyrow"></ul>
+        <button class="panel-toggle" id="panel-toggle" aria-expanded="false" aria-controls="panel-body">
+          <span data-i18n="panel.open">ชั้นข้อมูล</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+        </button>
+      </div>
+      <div class="panel-body" id="panel-body">
+        <div class="prefs">
+          <button class="btn" data-proxy="help" data-i18n="help.inline"></button>
+          <button class="btn" data-proxy="cinema" data-i18n="map.cinema"></button>
+          <button class="btn" data-proxy="lang"><span data-i18n="lang.name">English</span></button>
+          <button class="btn" data-proxy="theme"><span data-i18n="theme.name">โหมดสว่าง / มืด</span></button>
+        </div>
+        <h2 data-i18n="panel.colours">สีบอกอะไร</h2>
+        <p class="source-badge" data-i18n="model.legend"></p><ul class="legend" id="legend"></ul><p class="fine" data-i18n="model.disclaimer"></p><p class="source-badge" data-i18n="observed.legend"></p><p class="observed-key" data-i18n="observed.key"></p>
+        <p class="hint">
+          <svg viewBox="0 0 40 24" aria-hidden="true"><rect x="4" y="14" width="8" height="8" /><rect x="16" y="8" width="8" height="14" /><rect x="28" y="2" width="8" height="20" /></svg>
+          <span data-i18n="panel.hint">ผนังแม่น้ำยิ่งสูง แปลว่าน้ำยิ่งมาก</span>
+        </p>
+        <ul class="rainkey" id="rainkey"></ul><p class="fine" data-i18n="sources.note"></p>
+
+        <h2 data-i18n="panel.show">แสดงบนแผนที่</h2>
+        <div class="toggles" id="layers"></div>
+
+        <details class="more">
+          <summary data-i18n="panel.more">ตั้งค่าเพิ่มเติม</summary>
+          <label class="slider">
+            <span data-i18n="panel.height">ความสูงผนัง</span>
+            <input id="exaggeration" type="range" min="0.3" max="3" step="0.1" value="1" />
+            <output id="exaggeration-out">1.0×</output>
+          </label>
+          <label class="check"><input type="checkbox" id="imerg" /> <span data-i18n="panel.imerg">แสดงฝนจากดาวเทียม เมื่อดูวันย้อนหลัง</span></label>
+        </details>
+        <details class="sources">
+          <summary data-i18n="sources.title">ข้อมูลมาจากไหน</summary>
+          <ul data-i18n-html="sources.list">
+            <li><b>ปริมาณน้ำในแม่น้ำ</b> แบบจำลอง GloFAS ของ Copernicus (ผ่าน Open‑Meteo) · รายวัน และคาดการณ์ล่วงหน้า 30 วัน</li>
+            <li><b>เส้นแม่น้ำ</b> HydroRIVERS (WWF / HydroSHEDS)</li>
+            <li><b>ระดับน้ำและฝน</b> คลังข้อมูลน้ำแห่งชาติ ThaiWater (สสน.) · อัปเดตทุก 10 นาที</li>
+            <li><b>เรดาร์ฝน</b> RainViewer · 1 ชั่วโมงล่าสุด</li>
+            <li><b>พื้นที่น้ำท่วมจากดาวเทียม</b> NASA MODIS · <b>ฝนจากดาวเทียม</b> NASA GPM IMERG</li>
+            <li><b>แผนที่</b> OpenStreetMap / OpenFreeMap</li>
+          </ul>
+        </details>
+      </div>
+    </aside>
+
+
+    <div class="map-caption"><div class="mini-key"><span class="mini-model" data-i18n="source.model"></span><span><i class="key-normal"></i><span data-i18n="model.normal"></span></span><span><i class="key-high"></i><span data-i18n="model.high"></span></span><span><i class="key-extreme"></i><span data-i18n="model.danger"></span></span></div><span data-i18n="map.hint"></span><small data-i18n="map.note"></small></div>
+    <nav class="map-tools" aria-label="Map controls">
+      <button id="zoom-in" data-i18n-title="map.zoomIn" data-i18n-aria="map.zoomIn" title="Zoom in">+</button>
+      <button id="zoom-out" data-i18n-title="map.zoomOut" data-i18n-aria="map.zoomOut" title="Zoom out">−</button>
+      <span class="tool-rule"></span>
+      <button id="map-flat" data-i18n="map.flat" aria-pressed="false"></button>
+      <button id="map-home" data-i18n="map.home"></button>
+      <button id="cinema" data-i18n="map.cinema" aria-pressed="false"></button>
+    </nav>
+    <section class="card" id="card" hidden aria-label="Location details">
+      <div class="sheet-controls"><button id="sheet-toggle" aria-expanded="false" aria-controls="card-body" data-i18n="sheet.expand"></button><button class="card-close" id="card-close" data-i18n-aria="close" aria-label="ปิด">×</button></div>
+      <div id="card-body"></div>
+    </section>
+    <footer class="timeline" id="timeline">
+      <div class="time-toolbar">
+        <button class="play" id="play"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-play" d="M7 5v14l12-7z"/><path class="i-pause" d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg><span id="play-label" data-i18n="play"></span></button>
+        <div class="timeline-date"><label class="visually-hidden" for="date-picker" data-i18n="chart.date"></label><input type="date" id="date-picker"/><span id="timeline-source"></span></div>
+        <button id="now" class="now btn" data-i18n="now"></button>
+        <button id="compare-toggle" class="btn" data-i18n="compare.open" aria-expanded="false" aria-controls="comparison"></button>
+        <button id="chart-toggle" class="btn" data-i18n="chart.open" aria-expanded="false" aria-controls="track-container"></button>
+        <div class="speed" role="group" data-i18n-aria="speed.aria"><button data-speed="5" data-i18n="speed.slow" aria-pressed="false"></button><button data-speed="14" class="on" data-i18n="speed.normal" aria-pressed="true"></button><button data-speed="40" data-i18n="speed.fast" aria-pressed="false"></button></div>
+      </div>
+      <section class="comparison" id="comparison" hidden aria-label="Date comparison">
+        <p class="comparison-metric" id="compare-metric"></p>
+        <label><span data-i18n="compare.a"></span><input type="date" id="compare-a"/><small id="compare-a-source"></small></label>
+        <span class="comparison-divider">/</span>
+        <label><span data-i18n="compare.b"></span><input type="date" id="compare-b"/><small id="compare-b-source"></small></label>
+        <div class="comparison-result" id="compare-result" aria-live="polite"></div>
+        <p class="fine" data-i18n="compare.hint"></p>
+      </section>
+      <div class="track" id="track-container">
+        <div class="track-head"><span id="track-title"></span><span id="track-value"></span><button id="track-back" class="track-back" hidden data-i18n="chart.back"></button></div>
+        <div class="track-plot"><canvas id="chart" data-i18n-aria="chart.aria" aria-label="กราฟรายวัน"></canvas><div class="cursor" id="cursor"><span id="cursor-label"></span></div></div>
+      </div>
+      <div class="timeline-bottom"><label class="visually-hidden" for="day-slider" data-i18n="chart.date"></label><input type="range" id="day-slider" min="0" max="1" value="0" step="1"/><div class="time-events"><button id="event-week" data-i18n="chart.week"></button><button id="event-peak" data-i18n="chart.peak"></button><button id="event-next" data-i18n="chart.next"></button></div></div>
+    </footer>
+    <div class="guide" id="guide" hidden role="dialog" aria-modal="true" aria-labelledby="guide-title">
+      <div class="guide-box">
+        <h2 id="guide-title" data-i18n="guide.title">ดูแผนที่นี้อย่างไร</h2>
+        <ol>
+          <li>
+            <svg viewBox="0 0 64 40" aria-hidden="true"><path d="M4 36h56" /><rect x="10" y="24" width="10" height="12" class="w1" /><rect x="27" y="14" width="10" height="22" class="w2" /><rect x="44" y="4" width="10" height="32" class="w3" /></svg>
+            <p data-i18n-html="guide.1"><b>ผนังยิ่งสูง</b> แปลว่าน้ำในแม่น้ำยิ่งมาก</p>
+          </li>
+          <li>
+            <svg viewBox="0 0 64 40" aria-hidden="true"><circle cx="11" cy="20" r="7" class="c-grey" /><circle cx="25" cy="20" r="7" class="c-blue" /><circle cx="39" cy="20" r="7" class="c-yellow" /><circle cx="53" cy="20" r="7" class="c-red" /></svg>
+            <p data-i18n-html="guide.2"><b>ดูสี</b> สีฟ้าคือปกติ สีเหลืองคือน้ำมาก <span class="red">สีแดงคืออันตราย</span></p>
+          </li>
+          <li>
+            <svg viewBox="0 0 64 40" aria-hidden="true"><circle cx="32" cy="20" r="15" class="play-c" /><path d="M28 13v14l11-7z" class="play-t" /></svg>
+            <p id="guide-3"><b>แตะ</b>แม่น้ำหรือแท่งจุดวัดเพื่ออ่านรายละเอียด แล้วกด <b>เล่นย้อนหลัง</b> เพื่อดูน้ำขึ้นลงตลอด 6 เดือนที่ผ่านมา</p>
+          </li>
+        </ol>
+        <button class="btn primary" id="guide-ok" data-i18n="guide.ok">เริ่มดูเลย</button>
+      </div>
+    </div>
+
+
+    <div class="pick-hint" id="pick-hint" hidden data-i18n="near.picking">แตะบนแผนที่ตรงตำแหน่งที่ต้องการตรวจ</div>
+    <div class="loading" id="loading">
+      <div class="loading-inner">
+        <div class="loading-logo"><span class="wordmark">น้ำอยู่ไหน</span><svg class="mark" viewBox="0 0 40 52" aria-hidden="true">
+          <defs>
+            <linearGradient id="mk-b" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#8ff0ea" /><stop offset="0.55" stop-color="#3fb4ec" /><stop offset="1" stop-color="#2b6fe0" /></linearGradient>
+          </defs>
+          <path class="mark-hook" d="M13.6 15.4c1.8 1 1.5 3.7-.4 4.5-2.4 1-4.9-.6-4.9-3.6C8.3 8.6 14 3.5 21 3.5c7.5 0 12.5 5 12.5 11.5 0 6-4 9-8 11.5-3 1.9-4.5 4-4.5 7.5" fill="none" stroke="url(#mk-b)" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round" />
+          <path class="mark-drop" d="M21 40.2s-4.4 5-4.4 7.4a4.4 4.4 0 0 0 8.8 0c0-2.4-4.4-7.4-4.4-7.4z" fill="url(#mk-b)" />
+        </svg><i class="ripple"></i></div>
+        <b id="loading-text" data-i18n="loading">กำลังโหลดแผนที่แม่น้ำ…</b>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
